@@ -1,1 +1,1 @@
-openseespy==3.0.0
+openseespy==0.1.1
