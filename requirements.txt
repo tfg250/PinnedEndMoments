@@ -1,2 +1,1 @@
-openseespy
-opensees
+openseespy=0.1.1
