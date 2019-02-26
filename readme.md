@@ -3,4 +3,4 @@ Make a simple model of a bridge (MBE Example A1)
 Sovle it with OpenSeesPy
 
 
-https://hub.mybinder.org/user/tfg250-pinnedendmoments-ws9832uk/notebooks/CompareToStrand7.ipynb
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tfg250/PinnedEndMoments/master?filepath=CompareToStrand7.ipynb)
