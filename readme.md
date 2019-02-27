@@ -4,7 +4,7 @@ Sovle it with OpenSeesPy
 
 
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tfg250/PinnedEndMoments/master?filepath=blob%2Fmaster%2FPinnedEndMoments.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tfg250/PinnedEndMoments/master?filepath=blob%2Fmaster%2FCompareToStrand7.ipynb)
 for PinnedEndMoments.ipynb
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/tfg250/PinnedEndMoments/master?filepath=CompareToStrand7.ipynb)
