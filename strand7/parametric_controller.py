@@ -366,6 +366,99 @@ def RunMiser(INPUTS,runMODE,extractMODE,rateMODE,skipshelves=False):
     return True
 
 
+
+def MomentPlot(MODELDATA,INPUTS,run,filename,norm=False):
+    tableau10_256=[]
+    tableau20=[(31,119,180),(174,199,232),(255,127,14),(255,187,120),(44,160,44),(152,223,138),(214,39,40),(255,152,150),(148,103,189),(197,176,213),(140,86,75),(196,156,148),(227,119,194),(247,182,210),(127,127,127),(199,199,199),(188,189,34),(219,219,141),(23,190,207),(158,218,229)]
+    for i in range(len(tableau20)/2):   #integer operation
+        r, g, b = tableau20[i*2]
+        #color_cycle2.append((r / 255., g / 255., b / 255.))
+        tableau10_256.append((r, g, b))
+
+
+    PlotTraces=[]
+    maxz=0
+    maxy=0
+    miny=0
+    maxx=0
+    minx=0
+    for inp in sorted(run):
+        first=True
+        cc = sorted(INPUTS.keys()).index(inp)%10
+        maxZinp=0
+        if norm:
+            for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
+                for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
+                    g = 'g'+str(tup[2])
+                    section="SC_"+"%04d"%tup[0]
+                    maxZinp = max(maxZinp,(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])))
+
+        for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
+            x=[]
+            y=[]
+            zmin=[]
+            zmax=[]
+            hovermax=[]
+            hovermin=[]
+            for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
+                #list of (bee,xi,g,xj)
+                x.append(float(tup[1]))
+                y.append(float(yg))
+                g = 'g'+str(tup[2])
+                section="SC_"+"%04d"%tup[0]
+                x.append(float(tup[3]))
+                y.append(float(yg))
+                if norm:
+                    zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])/maxZinp)
+                    zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4])/maxZinp)
+                    zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6])/maxZinp)
+                    zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6])/maxZinp)
+                    hovermax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4]))
+                    hovermin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4]))
+                    hovermax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6]))
+                    hovermin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6]))
+                else:
+                    zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])/maxZinp)
+                    zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4])/maxZinp)
+                    zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6])/maxZinp)
+                    zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6])/maxZinp)
+                #compoutputterms = ['Axial','HShear','VShear','Torsion','HMoment','VMoment']
+            maxz = max(maxz,max(zmax))
+            maxy = max(maxy,max(y))
+            miny = min(miny,min(y))
+            maxx = max(maxx,max(x))
+            minx = min(minx,min(x))
+            if norm:
+                if first:
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",text=hovermax,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly'))
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",text=hovermin,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+                    first=False
+                else:
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",text=hovermax,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",text=hovermin,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+            else:
+                if first:
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly'))
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+                    first=False
+                else:
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+                    PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+
+    noaxis=dict(showbackground=False,showline=False,zeroline=False,showgrid=False,showticklabels=False,title='')
+    layout = dict(
+        title="Moment Summary",showlegend=True,
+        scene=dict(
+            aspectmode='manual',
+            aspectratio=dict(x=(maxx-minx)/(maxy-miny), y=1, z=1),
+            camera=dict(eye=dict(x=0, y=-0.5, z=0)),
+            xaxis=noaxis,
+            yaxis=noaxis,
+            zaxis=noaxis))
+    fig = dict(data=PlotTraces,layout=layout)
+    py.plot(fig, filename=filename+'.html',auto_open=False,show_link=False)
+
+
 #-------------------------------------------------------------------------------
 # Import Results
 #-------------------------------------------------------------------------------
@@ -474,6 +567,7 @@ for i in range(60,126,6):
     INPUTS["%03d"%model] = copy.deepcopy(INPUTS['000'])
     INPUTS["%03d"%model]['GirderSpacing']=i
     INPUTS["%03d"%model]['ModelName'] = ModelName+"%03d"%model
+    INPUTS["%03d"%model]['Label'] = 'S='+"%03d"%i+" inches"
 
 
 
@@ -483,23 +577,25 @@ model=20
 for k in range(13):
     kstiff = 10**k
     model+=1
-    INPUTS["%03d"%model] = copy.deepcopy(INPUTS['000'])
+    #Start with a wide one, which showed some higher PEM
+    INPUTS["%03d"%model] = copy.deepcopy(INPUTS['011'])
     INPUTS["%03d"%model]['BCS'][0]=kstiff
     INPUTS["%03d"%model]['ModelName'] = ModelName+"%03d"%model
+    INPUTS["%03d"%model]['Label'] = 'BC_kx='+"%4.1e"%kstiff+" lbf/in"
 
 
 #SET 3
 # vary the span length? (set 1 showed higher PEM for larger beam spacing, but i suspect that is actually the result of bridge plan aspect ratio, test that in set 3)
 
 model=40
-#SET 2
 # vary the longitudinal bc stiffness
 for k in range(11):
     model+=1
-    #Start with a wide one, which showed some PEM
+    #Start with a wide one, which showed some higher PEM
     INPUTS["%03d"%model] = copy.deepcopy(INPUTS['011'])
     INPUTS["%03d"%model]['SpanLength']= 780.*(0.5+(k/10.))
     INPUTS["%03d"%model]['ModelName'] = ModelName+"%03d"%model
+    INPUTS["%03d"%model]['Label'] = 'Span='+"%03d"%(INPUTS["%03d"%model]['SpanLength']/12.)+" ft"
 
 
 
@@ -511,13 +607,16 @@ for k in range(11):
 #-------------------------------------------------------------------------------
 # Make the Runs 
 #-------------------------------------------------------------------------------
-run1 = [inp for inp in sorted(INPUTS.keys()) if int(inp)<20]
-run2 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>20]
+run1 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>0 and int(inp)<20]
+run2 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>20 and int(inp)<40]
 run3 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>40]
 
-if True:
-    #for inp in run1:
-    #    WriteInput(INPUTS[inp])
+
+run=copy.deepcopy(run3)
+
+if False:
+    for inp in run1:
+        WriteInput(INPUTS[inp])
 
     for inp in run2:
         WriteInput(INPUTS[inp])
@@ -531,8 +630,7 @@ if True:
     First=True
 
     #NEWRUNS = True will force new runs for each inp, NEWRUNS=False will attempt to use existing, and only rerun if necessary. 
-    NEWRUNS =  True
-    run=copy.deepcopy(run2)+copy.deepcopy(run3)
+    NEWRUNS =  False
     while len(run)>0:
         rerun=[]
         for inp in run:
@@ -566,90 +664,34 @@ if True:
         if First:
             First=False
         run = copy.deepcopy(rerun)
-    run=copy.deepcopy(run2)+copy.deepcopy(run3)
 
 #-------------------------------------------------------------------------------
 # Fetch the model data
 #-------------------------------------------------------------------------------
-if False:
+if True:
     #open the shelves and grab:
         # the elements & nodes along each girder line
         # the node coords of BCs
     MODELDATA={}
     recoverkeys = ['GIRDERLINEELEMENTS','NODES','BEAMS','BCnodes','G_listofelements','NODES_OUT','G_listofys','COMP','NONCOMP','REACTIONS','DISPLACEMENTS']
+    #for inp in sorted(run1):
+    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+    #for inp in sorted(run2):
+    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+    #for inp in sorted(run3):
+    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
     for inp in sorted(run):
         MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
 
 #-------------------------------------------------------------------------------
 # Plot Results
 #-------------------------------------------------------------------------------
-if False:
-    #RESULTS={}
-    #for inp in sorted(INPUTS.keys()):
-    #    reactions, demands, displacements = ReadResults(INPUTS[inp])
-    #    RESULTS[inp]={'reactions':reactions,'demands':demands,'displacements':displacements}
+if True:
 
-    tableau10_256=[]
-    tableau20=[(31,119,180),(174,199,232),(255,127,14),(255,187,120),(44,160,44),(152,223,138),(214,39,40),(255,152,150),(148,103,189),(197,176,213),(140,86,75),(196,156,148),(227,119,194),(247,182,210),(127,127,127),(199,199,199),(188,189,34),(219,219,141),(23,190,207),(158,218,229)]
-    for i in range(len(tableau20)/2):   #integer operation
-        r, g, b = tableau20[i*2]
-        #color_cycle2.append((r / 255., g / 255., b / 255.))
-        tableau10_256.append((r, g, b))
+    #MomentPlot(MODELDATA,INPUTS,run1,'ParametricController_MomentSummary1',norm=True)
+    #MomentPlot(MODELDATA,INPUTS,run2,'ParametricController_MomentSummary2',norm=True)
+    MomentPlot(MODELDATA,INPUTS,run3,'ParametricController_MomentSummary3',norm=True)
 
-
-    PlotTraces=[]
-    maxz=0
-    maxy=0
-    miny=0
-    maxx=0
-    minx=0
-    for inp in sorted(run):
-        first=True
-        cc = sorted(INPUTS.keys()).index(inp)%10
-        for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
-            x=[]
-            y=[]
-            zmin=[]
-            zmax=[]
-            hovermax=[]
-            hovermin=[]
-            for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
-                #list of (bee,xi,g,xj)
-                x.append(float(tup[1]))
-                y.append(float(yg))
-                g = 'g'+str(tup[2])
-                section="SC_"+"%04d"%tup[0]
-                zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4]))
-                zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4]))
-                x.append(float(tup[3]))
-                y.append(float(yg))
-                zmax.append(float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6]))
-                zmin.append(float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6]))
-                #compoutputterms = ['Axial','HShear','VShear','Torsion','HMoment','VMoment']
-            maxz = max(maxz,max(zmax))
-            maxy = max(maxy,max(y))
-            miny = min(miny,min(y))
-            maxx = max(maxx,max(x))
-            minx = min(minx,min(x))
-            if first:
-                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName'],visible='legendonly'))
-                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName'],visible='legendonly',showlegend=False))
-                first=False
-            else:
-                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmax,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName'],visible='legendonly',showlegend=False))
-                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=zmin,hoverinfo="all",legendgroup=inp,name=INPUTS[inp]['ModelName'],visible='legendonly',showlegend=False))
-    noaxis=dict(showbackground=False,showline=False,zeroline=False,showgrid=False,showticklabels=False,title='')
-    layout = dict(
-        title="Moment Summary",showlegend=True,
-        scene=dict(
-            aspectmode='manual',
-            aspectratio=dict(x=(maxx-minx)/(maxy-miny), y=1, z=1),
-            camera=dict(eye=dict(x=0, y=-0.5, z=0)),
-            xaxis=noaxis,
-            yaxis=noaxis,
-            zaxis=noaxis))
-    fig = dict(data=PlotTraces,layout=layout)
-    py.plot(fig, filename='ParametricController_MomentSummary2'+'.html',auto_open=False,show_link=False)
 
 
     #now plot them.
