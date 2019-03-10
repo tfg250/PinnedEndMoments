@@ -656,7 +656,7 @@ if True:
                         if NEWRUNS:
                             rerun.append(inp)
                         else:
-                            RunMiser(INPUTS[inp],'R','R',3)
+                            RunMiser(INPUTS[inp],'R','R',1)
             else:
                 #WriteInput(INPUTS[inp])
                 RunMiser(INPUTS[inp],4,2,3)
@@ -664,6 +664,8 @@ if True:
         if First:
             First=False
         run = copy.deepcopy(rerun)
+
+run=copy.deepcopy(run3)
 
 #-------------------------------------------------------------------------------
 # Fetch the model data
