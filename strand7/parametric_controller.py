@@ -146,6 +146,7 @@ def WriteInput(INPUTS):
     inpfile.write("*DECKMESH,"+str(INPUTS['deckmesh'])+",\n")
     for m in sorted(INPUTS['Mats'].keys()):
         inpfile.write("*MATERIAL,"+str(int(m))+","+",".join([str(j) for j in INPUTS['Mats'][m]])+",\n")
+
     for bp in sorted(INPUTS['Props'].keys()):
         inpfile.write("*BEAMPROP,"+str(int(bp))+","+",".join([str(j) for j in INPUTS['Props'][bp]])+",\n")
 
@@ -459,6 +460,95 @@ def MomentPlot(MODELDATA,INPUTS,run,filename,norm=False):
     py.plot(fig, filename=filename+'.html',auto_open=False,show_link=False)
 
 
+def DeflectionPlot(MODELDATA,INPUTS,run,filename,SF=10000.):
+    tableau10_256=[]
+    tableau20=[(31,119,180),(174,199,232),(255,127,14),(255,187,120),(44,160,44),(152,223,138),(214,39,40),(255,152,150),(148,103,189),(197,176,213),(140,86,75),(196,156,148),(227,119,194),(247,182,210),(127,127,127),(199,199,199),(188,189,34),(219,219,141),(23,190,207),(158,218,229)]
+    for i in range(len(tableau20)/2):   #integer operation
+        r, g, b = tableau20[i*2]
+        #color_cycle2.append((r / 255., g / 255., b / 255.))
+        tableau10_256.append((r, g, b))
+
+    pattern1=re.compile("_C06_L[0-9][0-9]")
+    
+    PlotTraces=[]
+    maxz=0
+    maxy=0
+    miny=0
+    maxx=0
+    minx=0
+    for inp in sorted(run):
+        cases=[]
+        #print inp
+        first=True
+        cc = sorted(INPUTS.keys()).index(inp)%10
+        tmpnode = MODELDATA[inp]['DISPLACEMENTS'].keys()[0]
+        for c in MODELDATA[inp]['DISPLACEMENTS'][tmpnode].keys():
+            if bool(re.search(pattern1,str(c))):
+                cases.append(c)
+        case = sorted(cases)[0]
+        case = 6
+        for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
+            x=[]
+            y=[]
+            z=[]
+            hover=[]
+            for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
+                #list of (bee,xi,g,xj)
+                #x.append(float(tup[1]))
+                #y.append(float(yg))
+                g = 'g'+str(tup[2])
+                section="SC_"+"%04d"%tup[0]
+                #x.append(float(tup[3]))
+                #y.append(float(yg))
+                #print MODELDATA[inp]['BEAMS'][tup[0]]
+                #print MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][2]]
+                #print MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][3]]
+                ni = MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][2]]
+                nj = MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][3]]
+                #print ni in MODELDATA[inp]['DISPLACEMENTS']
+                #print nj in MODELDATA[inp]['DISPLACEMENTS']
+                #print ni in MODELDATA[inp]['NODES_OUT']
+                #print nj in MODELDATA[inp]['NODES_OUT']
+                #print MODELDATA[inp]['BEAMS'][tup[0]][2] in MODELDATA[inp]['NODES_OUT']
+                #print MODELDATA[inp]['BEAMS'][tup[0]][3] in MODELDATA[inp]['NODES_OUT']
+                #print MODELDATA[inp]['DISPLACEMENTS'][ni].keys()
+                #print case
+                #print case in MODELDATA[inp]['DISPLACEMENTS'][ni].keys()
+
+                x.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][0]))#+ SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][0])
+                y.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][1]))#+ SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][1])
+                z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][2])+ SF *   float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
+                hover.append('x: '+"%.2f"%float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][0])+"<br>"+"y: "+"%.2f"%float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][1])+"<br>" + "z: "+"%.2f"%float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
+                x.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][0]))#+ SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][0])
+                y.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][1]))#+ SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][1])
+                z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][2])+ SF *   float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
+                hover.append('x: '+"%.2f"%float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][0])+"<br>"+"y: "+"%.2f"%float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][1])+"<br>" + "z: "+"%.2f"%float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
+
+            maxz = max(maxz,-min(z))
+            maxy = max(maxy,max(y))
+            miny = min(miny,min(y))
+            maxx = max(maxx,max(x))
+            minx = min(minx,min(x))
+            if first:
+                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=z,hoverinfo="name+text",text=hover,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly'))
+                first=False
+            else:
+                PlotTraces.append(dict(type='scatter3d', line=dict(color='rgb'+`tableau10_256[cc]`,width=3), mode='lines',x=x,y=y,z=z,hoverinfo="name+text",text=hover,legendgroup=inp,name=INPUTS[inp]['ModelName']+" "+INPUTS[inp]['Label'],visible='legendonly',showlegend=False))
+
+    noaxis=dict(showbackground=False,showline=False,zeroline=False,showgrid=False,showticklabels=False,title='')
+    layout = dict(
+        title="Deflection Summary",showlegend=True,
+        scene=dict(
+            aspectmode='manual',
+            aspectratio=dict(x=(maxx-minx)/(maxy-miny), y=1, z=1),
+            camera=dict(eye=dict(x=0, y=-0.5, z=0)),
+            xaxis=noaxis,
+            yaxis=noaxis,
+            zaxis=noaxis))
+    fig = dict(data=PlotTraces,layout=layout)
+    py.plot(fig, filename=filename+'.html',auto_open=False,show_link=False)
+
+
 #-------------------------------------------------------------------------------
 # Import Results
 #-------------------------------------------------------------------------------
@@ -474,6 +564,8 @@ def MomentPlot(MODELDATA,INPUTS,run,filename,norm=False):
 #    elif os.path.isfile(noncompdemandsfile):
 #        demands = pd.read_csv(noncompdemandsfile) 
 #    return reactions, demands, displacements
+
+
 
 #-------------------------------------------------------------------------------
 # INPUTS
@@ -599,8 +691,17 @@ for k in range(11):
 
 
 
-
-
+#SET 4, one without deck shear stiffness
+#this was BCW57901_033 & _034 which showed the big difference in deflection as a result of deck shear modulus
+#SET 2 didn't show much difference in deflection so maybe deflection is a result of G and not PEM.
+model = 60
+if True:
+    model+=1
+    #Start with a wide one, which showed some higher PEM
+    INPUTS["%03d"%model] = copy.deepcopy(INPUTS['011'])
+    INPUTS["%03d"%model]['Mats'][2] = [57000.*(4000.)**0.5, 57000.*(4000.)**0.5, 57000.*(4000.)**0.5, 0.0, 0.0, 0.0, 150./12.**3, 4000.,(57000.*(4000.)**0.5 / (2*(1+0.2)))*0.000001 ,57000.*(4000.)**0.5 / (2*(1+0.2)),57000.*(4000.)**0.5 / (2*(1+0.2))]
+    INPUTS["%03d"%model]['ModelName'] = ModelName+"%03d"%model
+    INPUTS["%03d"%model]['Label'] = 'Zero Deck Shear Modulus'
 
 
 
@@ -609,10 +710,11 @@ for k in range(11):
 #-------------------------------------------------------------------------------
 run1 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>0 and int(inp)<20]
 run2 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>20 and int(inp)<40]
-run3 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>40]
+run3 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>40 and int(inp)<60]
+run4 = [inp for inp in sorted(INPUTS.keys()) if int(inp)>60 and int(inp)<80] + ['011']
 
 
-run=copy.deepcopy(run3)
+run=copy.deepcopy(run4)
 
 if False:
     for inp in run1:
@@ -624,6 +726,9 @@ if False:
     for inp in run3:
         WriteInput(INPUTS[inp])
 
+if True:
+    for inp in run4:
+        WriteInput(INPUTS[inp])
 
 if True:
     #first is use to run 423, after that, runs are submitted with RR3.
@@ -665,35 +770,48 @@ if True:
             First=False
         run = copy.deepcopy(rerun)
 
-run=copy.deepcopy(run3)
+    run=copy.deepcopy(run4)
 
 #-------------------------------------------------------------------------------
 # Fetch the model data
 #-------------------------------------------------------------------------------
+#open the shelves and grab:
+    # the elements & nodes along each girder line
+    # the node coords of BCs
+MODELDATA={}
+recoverkeys = ['GIRDERLINEELEMENTS','NODES','BEAMS','BCnodes','G_listofelements','NODES_OUT','G_listofys','COMP','NONCOMP','REACTIONS','DISPLACEMENTS','NODEMAP']
+
+if False:
+    for inp in sorted(run1):
+        MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+    for inp in sorted(run2):
+        MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+    for inp in sorted(run3):
+        MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+    #for inp in sorted(run):
+    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
+
 if True:
-    #open the shelves and grab:
-        # the elements & nodes along each girder line
-        # the node coords of BCs
-    MODELDATA={}
-    recoverkeys = ['GIRDERLINEELEMENTS','NODES','BEAMS','BCnodes','G_listofelements','NODES_OUT','G_listofys','COMP','NONCOMP','REACTIONS','DISPLACEMENTS']
-    #for inp in sorted(run1):
-    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
-    #for inp in sorted(run2):
-    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
-    #for inp in sorted(run3):
-    #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
-    for inp in sorted(run):
+    for inp in sorted(run4):
         MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
 
 #-------------------------------------------------------------------------------
 # Plot Results
 #-------------------------------------------------------------------------------
-if True:
+if False:
 
-    #MomentPlot(MODELDATA,INPUTS,run1,'ParametricController_MomentSummary1',norm=True)
-    #MomentPlot(MODELDATA,INPUTS,run2,'ParametricController_MomentSummary2',norm=True)
+    MomentPlot(MODELDATA,INPUTS,run1,'ParametricController_MomentSummary1',norm=True)
+    MomentPlot(MODELDATA,INPUTS,run2,'ParametricController_MomentSummary2',norm=True)
     MomentPlot(MODELDATA,INPUTS,run3,'ParametricController_MomentSummary3',norm=True)
 
+    DeflectionPlot(MODELDATA,INPUTS,run1,'ParametricController_DeflectionSummary1')
+    DeflectionPlot(MODELDATA,INPUTS,run2,'ParametricController_DeflectionSummary2')
+    DeflectionPlot(MODELDATA,INPUTS,run3,'ParametricController_DeflectionSummary3')
+
+if True:
+
+    MomentPlot(MODELDATA,INPUTS,run4,'ParametricController_MomentSummary4',norm=True)
+    DeflectionPlot(MODELDATA,INPUTS,run4,'ParametricController_DeflectionSummary4')
 
 
     #now plot them.
