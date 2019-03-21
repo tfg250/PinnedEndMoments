@@ -3,7 +3,7 @@ import subprocess
 from subprocess import STDOUT
 import copy
 import os
-# import pandas as pd
+import pandas as pd
 import math
 import re
 import shelve
@@ -182,7 +182,7 @@ def WriteInput(INPUTS):
 
     # DECK-------------------------------------------------------------------
     d1W = (INPUTS['GirderSpacing'] * (INPUTS['NumberGirders'] -
-                                      1) + 2 * INPUTS['Overhang']) - 2 * INPUTS['SidewalkWidth']
+                                      1) + 2 * INPUTS['Overhang']) - 2 * max(INPUTS['SidewalkWidth'],INPUTS['ParapetWidth'])
     d1L = INPUTS['SpanLength']
 
     # assumed D1 is at z=0
@@ -325,7 +325,7 @@ def WriteInput(INPUTS):
         
         for ptcase in INPUTS['PointLoad']:
             lc+=1
-            inpfile.write('*STATICLOADCASE,'+str(lc)+',PointLoad\n')
+            inpfile.write('*STATICLOADCASE,'+str(lc)+',PointLoad'+str(INPUTS['PointLoad'].index(ptcase))+'\n')
             #print lc
             #pprint.pprint(ptcase)
             for ptload in ptcase:
@@ -482,7 +482,7 @@ def RunMiser(INPUTS, runMODE, extractMODE, rateMODE, skipshelves=False):
     return True
 
 
-def MomentPlot(MODELDATA, INPUTS, run, filename, norm=False):
+def MomentPlot(MODELDATA, INPUTS, run, filename, extract='static', norm=False):
     tableau10_256 = []
     tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120), (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150), (148, 103, 189), (197, 176, 213),
                  (140, 86, 75), (196, 156, 148), (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199), (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
@@ -506,8 +506,14 @@ def MomentPlot(MODELDATA, INPUTS, run, filename, norm=False):
                 for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
                     g = 'g'+str(tup[2])
                     section = "SC_"+"%04d" % tup[0]
-                    maxZinp = max(
-                        maxZinp, (float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])))
+                    #pp.pprint(MODELDATA[inp]['COMP'].keys())
+                    #pp.pprint(MODELDATA[inp]['COMP'][g][section].keys())
+                    if extract=='static':
+                        cases = [c for c in MODELDATA[inp]['COMP'][g][section].keys() if c not in ['DL2', 'DL1', 'DL0', 'SIDL']]
+                        maxZinp = max(maxZinp, (float(max([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases]))))
+                    else:
+                        maxZinp = max(maxZinp, (float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])))
+
 
         for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
             x = []
@@ -524,32 +530,33 @@ def MomentPlot(MODELDATA, INPUTS, run, filename, norm=False):
                 section = "SC_"+"%04d" % tup[0]
                 x.append(float(tup[3]))
                 y.append(float(yg))
-                if norm:
-                    zmax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])/maxZinp)
-                    zmin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4])/maxZinp)
-                    zmax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6])/maxZinp)
-                    zmin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6])/maxZinp)
-                    hovermax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4]))
-                    hovermin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4]))
-                    hovermax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6]))
-                    hovermin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6]))
+                if extract=='static':
+                    cases = [c for c in MODELDATA[inp]['COMP'][g][section].keys() if c not in ['DL2', 'DL1', 'DL0', 'SIDL']]
+                    zi1=float(max([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases]))
+                    zi2=float(min([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases]))
+                    zj1=float(max([MODELDATA[inp]['COMP'][g][section][c][4+6] for c in cases]))
+                    zj2=float(min([MODELDATA[inp]['COMP'][g][section][c][4+6] for c in cases]))
                 else:
-                    zmax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4])/maxZinp)
-                    zmin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4])/maxZinp)
-                    zmax.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MAX'][4+6])/maxZinp)
-                    zmin.append(
-                        float(MODELDATA[inp]['COMP'][g][section][6]['MIN'][4+6])/maxZinp)
+                    cases = [6]
+                    zi1=float(max([MODELDATA[inp]['COMP'][g][section][c]['MAX'][4] for c in cases]))
+                    zi2=float(min([MODELDATA[inp]['COMP'][g][section][c]['MIN'][4] for c in cases]))
+                    zj1=float(max([MODELDATA[inp]['COMP'][g][section][c]['MAX'][4+6] for c in cases]))
+                    zj2=float(min([MODELDATA[inp]['COMP'][g][section][c]['MIN'][4+6] for c in cases]))
+                if norm:
+                    #pp.pprint(MODELDATA[inp]['COMP'][g][section].keys())
+                    zmax.append(zi1/maxZinp)
+                    zmin.append(zi2/maxZinp)
+                    zmax.append(zj1/maxZinp)
+                    zmin.append(zj2/maxZinp)
+                    hovermax.append(zi1)
+                    hovermin.append(zi2)
+                    hovermax.append(zj1)
+                    hovermin.append(zj2)
+                else:
+                    zmax.append(zi1)
+                    zmin.append(zi2)
+                    zmax.append(zj1)
+                    zmin.append(zj2)
                 #compoutputterms = ['Axial','HShear','VShear','Torsion','HMoment','VMoment']
             maxz = max(maxz, max(zmax))
             maxy = max(maxy, max(y))
@@ -596,7 +603,7 @@ def MomentPlot(MODELDATA, INPUTS, run, filename, norm=False):
     py.plot(fig, filename=filename+'.html', auto_open=False, show_link=False)
 
 
-def DeflectionPlot(MODELDATA, INPUTS, run, filename, SF=10000.):
+def DeflectionPlot(MODELDATA, INPUTS, run, filename, extract='static', SF=10000.):
     tableau10_256 = []
     tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120), (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150), (148, 103, 189), (197, 176, 213),
                  (140, 86, 75), (196, 156, 148), (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199), (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
@@ -605,7 +612,10 @@ def DeflectionPlot(MODELDATA, INPUTS, run, filename, SF=10000.):
         #color_cycle2.append((r / 255., g / 255., b / 255.))
         tableau10_256.append((r, g, b))
 
-    pattern1 = re.compile("_C06_L[0-9][0-9]")
+    if extract=='static':
+        pattern1 = re.compile("PointLoad[0-9]")
+    else:
+        pattern1 = re.compile("_C06_L[0-9][0-9]")
 
     PlotTraces = []
     maxz = 0
@@ -623,7 +633,7 @@ def DeflectionPlot(MODELDATA, INPUTS, run, filename, SF=10000.):
             if bool(re.search(pattern1, str(c))):
                 cases.append(c)
         case = sorted(cases)[0]
-        case = 6
+        #case = 6
         for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
             x = []
             y = []
@@ -660,20 +670,24 @@ def DeflectionPlot(MODELDATA, INPUTS, run, filename, SF=10000.):
                 # + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][1])
                 y.append(float(MODELDATA[inp]['NODES_OUT']
                                [MODELDATA[inp]['BEAMS'][tup[0]][2]][1]))
-                z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]]
-                               [2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
-                hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][0])+"<br>"+"y: "+"%.2f" % float(
-                    MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
+                if extract=='static':
+                    z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][case][2]))
+                    hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][0])+"<br>"+"y: "+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][ni][case][2]))
+                else:
+                    z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
+                    hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][0])+"<br>"+"y: "+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][2]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][ni][case]['MIN'][2]))
                 # + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][0])
                 x.append(float(MODELDATA[inp]['NODES_OUT']
                                [MODELDATA[inp]['BEAMS'][tup[0]][3]][0]))
                 # + SF * float(MODELDATA[inp]['DISPLACEMENTS'][ni][6]['MIN'][1])
                 y.append(float(MODELDATA[inp]['NODES_OUT']
                                [MODELDATA[inp]['BEAMS'][tup[0]][3]][1]))
-                z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]]
-                               [2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
-                hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][0])+"<br>"+"y: "+"%.2f" % float(
-                    MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
+                if extract=='static':
+                    z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][nj][case][2]))
+                    hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][0])+"<br>"+"y: "+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][nj][case][2]))
+                else:
+                    z.append(float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][2]) + SF * float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
+                    hover.append('x: '+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][0])+"<br>"+"y: "+"%.2f" % float(MODELDATA[inp]['NODES_OUT'][MODELDATA[inp]['BEAMS'][tup[0]][3]][1])+"<br>" + "z: "+"%.2f" % float(MODELDATA[inp]['DISPLACEMENTS'][nj][case]['MIN'][2]))
 
             maxz = max(maxz, -min(z))
             maxy = max(maxy, max(y))
@@ -784,7 +798,7 @@ if False:
     BCZ = 0.
     # guidance is truss elements, so release moments
     Options = ['diaphragmreleases', True,
-               'reactions', True, 'displacements', True]
+               'reactions', True, 'displacements', True,'sectioncheckingfigure',False]
 
 
 
@@ -847,7 +861,9 @@ if False:
     # guidance is truss elements, so release moments
     Options = ['diaphragmreleases', True,
                'reactions', True, 'displacements', True]
-
+#                     0,  1,     2,3,                    4,5,    6]
+#TX['TX_30_120_R01']=[2,120,     7,5,[40,277]             ,6,49.62]
+#TX['TX_24_30_P01'] =[2, 30,7.3333,4,[1,12,1.25,12,0.5,17],3,29.25]
 
 from txdot_inputs import *
 INPUTS = {}
@@ -861,30 +877,30 @@ if True:
         GirderSpacing = TX[tx][2]*12.
         SpanLength = TX[tx][1]*12. - 2 * 2
         Overhang = TX[tx][0]*12.
+        numberofdiaphragms=TX[tx][5]
         #get girder depth
         Props = {}
         if "R" in tx:
             #rollded girder
-            depth = TX[tx][4]
+            depth = TX[tx][4][0]
             haunch = y-ts-depth
             gz = -ts/2. - haunch - depth/2.
-            numberofdiaphragms=TX[tx][6]
-            Props[1] = [0, 'AISC','13th','W'+str(TX[tx][4])+'x'+str(TX[tx][5])]
-            Props[2] = [0, 'AISC','13th',DIAPHRAGMS['W'+str(TX[tx][4])]]
+            
+            Props[1] = [0, 'AISC','13th','W'+str(TX[tx][4][0])+'x'+str(TX[tx][4][1])]
+            Props[2] = [0, 'AISC','13th',DIAPHRAGMS['W'+str(TX[tx][4][0])]]
 
         elif "P" in tx:
-            ttf = TX[tx][4]
-            btf = TX[tx][5]
-            tbf = TX[tx][6]
-            bbf = TX[tx][7]
-            tw = TX[tx][8]
-            hw = TX[tx][9]
+            ttf = TX[tx][4][0]
+            btf = TX[tx][4][1]
+            tbf = TX[tx][4][2]
+            bbf = TX[tx][4][3]
+            tw = TX[tx][4][4]
+            hw = TX[tx][4][5]
             d = ttf+hw+tbf
             ybar = ComputeSectionProps(ttf,btf,tbf,bbf,tw,hw)
             depth = ttf+tbf+hw
             haunch = y-ts-depth
             gz = -ts/2. - haunch - depth + ybar
-            numberofdiaphragms=TX[tx][10]
             Props[1] = [0, 'IBeam',bbf,btf,d,tbf,ttf,tw]
             Props[2] = [0, 'AISC', '13th',DIAPHRAGMS[d]]
 
@@ -960,7 +976,7 @@ if True:
         BCZ = 0.
         # guidance is truss elements, so release moments
         Options = ['diaphragmreleases', True,
-                   'reactions', True, 'displacements', True]
+                   'reactions', True, 'displacements', True,'sectioncheckingfigure',False]
 
         # -------------------------------------------------------------------------------
         # Package them up
@@ -977,6 +993,8 @@ if True:
         for var in variablelist:
             INPUTS[tx][var] = eval(var)
         INPUTS[tx]['ModelName'] = tx
+        INPUTS[tx]['Label']=tx
+
 
 
 # -------------------------------------------------------------------------------
@@ -1059,16 +1077,15 @@ if False:
 
     for inp in run4:
         WriteInput(INPUTS[inp])
-
-
+run = copy.deepcopy(run1) 
 
 #CHANGE THIS TO USE MULTI-PROESSING, 6 AT A TIME?
-if False:
+if True:
     # first is use to run 423, after that, runs are submitted with RR3.
     First = True
 
     # NEWRUNS = True will force new runs for each inp, NEWRUNS=False will attempt to use existing, and only rerun if necessary.
-    NEWRUNS = True
+    NEWRUNS = False
     while len(run) > 0:
         rerun = []
         for inp in run:
@@ -1077,8 +1094,8 @@ if False:
             if NEWRUNS:
                 if First:
                     # WriteInput(INPUTS[inp])
-                    #RunMiser(INPUTS[inp], 4, 2, 3, True)
-                    RunMiser(INPUTS[inp], 1, 0, 0, True)
+                    #RunMiser(INPUTS[inp], 4, 2, 3)
+                    RunMiser(INPUTS[inp], 3, 1, 1)
                 else:
                     RunMiser(INPUTS[inp], 'R', 'R', 3)
 
@@ -1098,14 +1115,14 @@ if False:
                             RunMiser(INPUTS[inp], 'R', 'R', 1)
             else:
                 # WriteInput(INPUTS[inp])
-                #RunMiser(INPUTS[inp], 4, 2, 3, True)
-                RunMiser(INPUTS[inp], 1, 0, 0, True)
+                #RunMiser(INPUTS[inp], 4, 2, 3)
+                RunMiser(INPUTS[inp], 3, 1, 1)
 
         if First:
             First = False
         run = copy.deepcopy(rerun)
 
-    run = copy.deepcopy(run1)
+    run = copy.deepcopy(run1) 
 
 # -------------------------------------------------------------------------------
 # Fetch the model data
@@ -1129,9 +1146,11 @@ if False:
             INPUTS[inp]['ModelName'], [], recoverkeys)
     # for inp in sorted(run):
     #    MODELDATA[inp] = recovershelve(INPUTS[inp]['ModelName'],[],recoverkeys)
-
-if False:
     for inp in sorted(run4):
+        MODELDATA[inp] = recovershelve(
+            INPUTS[inp]['ModelName'], [], recoverkeys)
+if True:
+    for inp in sorted(run):
         MODELDATA[inp] = recovershelve(
             INPUTS[inp]['ModelName'], [], recoverkeys)
 
@@ -1154,23 +1173,63 @@ if False:
     DeflectionPlot(MODELDATA, INPUTS, run3,
                    'ParametricController_DeflectionSummary3')
 
-if False:
-
     MomentPlot(MODELDATA, INPUTS, run4,
                'ParametricController_MomentSummary4', norm=True)
     DeflectionPlot(MODELDATA, INPUTS, run4,
                    'ParametricController_DeflectionSummary4')
+if False:
 
-    # now plot them.
+    MomentPlot(MODELDATA, INPUTS, run,
+               'ParametricController_MomentSummary_TX', norm=True)
+    DeflectionPlot(MODELDATA, INPUTS, run,
+                   'ParametricController_DeflectionSummary_TX')
 
-    # make a 3d plotly showing moment diagrams from each modelset.
+#build dataframe of results
+if True:
+    RESULTS= {}
+    for inp in run:
+        RESULTS[inp]= {'width':int(inp[3:5]),'span':TX[inp][1],'girderspacing':TX[inp][2],'numberofgirders':TX[inp][3],'girders':TX[inp][4],'numberofdiaphragms':TX[inp][5],'Y':TX[inp][6]}
+        maxXreaction = 0
+        minXreaction = 0
+        for n in MODELDATA[inp]['REACTIONS']:
+            cases = [c for c in MODELDATA[inp]['REACTIONS'][n].keys() if c not in ['DL2', 'DL1', 'DL0', 'SIDL']]
+            maxXreaction = max(maxXreaction,max([MODELDATA[inp]['REACTIONS'][n][c][0] for c in cases]))
+            minXreaction = min(minXreaction,min([MODELDATA[inp]['REACTIONS'][n][c][0] for c in cases]))
+        RESULTS[inp]['maxXreaction'] = maxXreaction
+        RESULTS[inp]['minXreaction'] = minXreaction
 
-    # make a 3d plotly showing gider deflected shapes from each modelset
+        maxmoment = 0
+        mindeflection = 0
 
-    # show reactions somehow.
+        for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
+            for tup in MODELDATA[inp]['GIRDERLINEELEMENTS'][yg]:
+                g = 'g'+str(tup[2])
+                section = "SC_"+"%04d" % tup[0]
+                cases = [c for c in MODELDATA[inp]['COMP'][g][section].keys() if c not in ['DL2', 'DL1', 'DL0', 'SIDL']]
+                maxmoment = max(maxmoment, float(max([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases])))
+                
+                ni = MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][2]]
+                nj = MODELDATA[inp]['NODEMAP'][MODELDATA[inp]['BEAMS'][tup[0]][3]]
+                mindeflection = min(mindeflection,float(min(min([MODELDATA[inp]['DISPLACEMENTS'][ni][c][2] for c in cases]),min([MODELDATA[inp]['DISPLACEMENTS'][nj][c][2] for c in cases]))))
 
-    # try to pull this plotly stuff from miser.
+        RESULTS[inp]['maxmoment'] = maxmoment
+        RESULTS[inp]['mindeflection'] = mindeflection
 
+        maxendmoment = 0
+        minendmoment = 0
 
+        for yg in sorted(MODELDATA[inp]['GIRDERLINEELEMENTS'].keys()):
+            for tup in [MODELDATA[inp]['GIRDERLINEELEMENTS'][yg][0],MODELDATA[inp]['GIRDERLINEELEMENTS'][yg][-1]]:
+                g = 'g'+str(tup[2])
+                section = "SC_"+"%04d" % tup[0]
+                cases = [c for c in MODELDATA[inp]['COMP'][g][section].keys() if c not in ['DL2', 'DL1', 'DL0', 'SIDL']]
+                maxendmoment = max(maxendmoment, (float(max([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases]))))
+                minendmoment = min(minendmoment, (float(max([MODELDATA[inp]['COMP'][g][section][c][4] for c in cases]))))
 
-#function to generate static plot
+        RESULTS[inp]['maxendmoment'] = maxendmoment
+        RESULTS[inp]['minendmoment'] = minendmoment
+
+        
+
+resDF = pd.DataFrame.from_dict(RESULTS,orient='index')
+resDF.to_csv('txdot_results.csv')
