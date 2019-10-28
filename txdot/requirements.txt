@@ -1,2 +1,7 @@
 csv == 1.0
 plotly == 3.6.1
+numpy
+matplotlib
+pandas
+psutil
+statsmodels
